@@ -63,7 +63,7 @@ def load_login_params(path: Path | str) -> dict | None:
 def load_enterprise_list(csv_file: Path | str) -> list[str] | None:
     """Load the list of enterprises from a specified CSV file."""
     try:
-        df = pd.read_csv(csv_file, header=None, encoding='GBK')
+        df = pd.read_csv(csv_file, header=None, encoding='utf-8')
         enterprises = df.iloc[:, 0].dropna().unique().tolist()
         logging.info(f"Successfully loaded {len(enterprises)} unique enterprise names from CSV.")
         return enterprises

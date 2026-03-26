@@ -2,9 +2,7 @@ import logging
 import json
 import traceback
 import time
-import random
 import pandas as pd
-from pathlib import Path
 from src.read import load_accounts, load_login_params, load_enterprise_list
 from src.scraper import Scraper
 
@@ -108,6 +106,9 @@ def main():
         print(f"Remaining enterprises that were not processed: {enterprises}")
     print("#"*60)
     json.dump(all_extracted_data, open("output/extracted_data.json", "w", encoding="utf-8"), ensure_ascii=False, indent=4)
+    df_data = pd.DataFrame.from_dict(all_extracted_data, orient='index')
+    df_data.to_csv("output/extracted_data.csv", encoding="utf-8-sig")
+
     # print(f"已爬取的公司代码列表: {code_dict}")
 
 

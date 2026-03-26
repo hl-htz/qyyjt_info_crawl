@@ -209,17 +209,12 @@ class Scraper():
             print(f"Error occurred while searching for '{search_term}': {e}")
             return None
 
-    def get_info(self, enterprise_code: str, enterprise_name: str, loading_time: float=5.0, silent: bool=True) -> dict | None:
+    def get_info(self, enterprise_code: str, enterprise_name: str, loading_time: float=5.0) -> dict | None:
         with open("src/query_keys.json", "r", encoding="utf-8") as f:
             query_keys = json.load(f)
         basic_info_keys = query_keys.get("basic_info", {})
 
         logging.info(f"Collecting information for enterprise '{enterprise_name}'...")
-        options = Options()
-        if silent is True:
-            options.add_argument('--headless')
-        else:
-            options.add_argument("--start-maximized")
         try:
             basic_info = {}
 
@@ -236,8 +231,7 @@ class Scraper():
                     element = soup.find_all(text=f"{basic_info_keys[basic_info_key]}")[0].find_next(text=True)
                     if element.strip() == "：":
                         element = element.find_next(text=True)
-                    else:
-                        basic_info[basic_info_key] = element.strip()
+                    basic_info[basic_info_key] = element.strip()
                 
                 except Exception as e:
                     logging.warning(f"Failed to find element for '{basic_info_key}' in enterprise '{enterprise_name}'.")
