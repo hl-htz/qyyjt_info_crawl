@@ -1,0 +1,14 @@
+{
+    "XPaths": {
+        "id_password_login_tab": "//div[text()='账户密码登录']",
+        "phone_num_input": "//input[@placeholder='请输入手机号']",
+        "password_input": "//input[@type='password']",
+        "login_button": "//button[contains(., '登 录')]",
+        "home_search_input": "//input[@placeholder='企业/证券/功能/集团户/区域/关键字']",
+        "search_result_check": "//div[@role='tab' and contains(text(), '企业')]"
+    },
+    "URLs": {
+        "login_url": "https://www.qyyjt.cn/user/login",
+        "homepage_url": "https://www.qyyjt.cn/home"
+    }
+}
