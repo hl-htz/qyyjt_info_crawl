@@ -5,10 +5,12 @@
         "password_input": "//input[@type='password']",
         "login_button": "//button[contains(., '登 录')]",
         "home_search_input": "//input[@placeholder='企业/证券/功能/集团户/区域/关键字']",
-        "search_result_check": "//div[@role='tab' and contains(text(), '企业')]"
+        "search_result_check": "//div[@role='tab' and contains(text(), '企业')]",
+        "home_page": "//div[@title='首页']"
     },
     "URLs": {
         "login_url": "https://www.qyyjt.cn/user/login",
-        "homepage_url": "https://www.qyyjt.cn/home"
+        "homepage_url": "https://www.qyyjt.cn/home",
+        "region_code_api_url": "https://api.ecnu.edu.cn/api/v1/metadata/divisions-all"
     }
 }

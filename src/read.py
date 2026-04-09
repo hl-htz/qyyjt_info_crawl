@@ -36,10 +36,12 @@ def load_login_params(path: Path | str) -> dict | None:
         "login_button",
         "home_search_input",
         "search_result_check",
+        "home_page"
     }
     url_keys = {
         "login_url",
         "homepage_url",
+        "region_code_api_url",
     }
     try:
         with open(path, 'r', encoding='utf-8') as f:

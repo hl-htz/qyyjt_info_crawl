@@ -3,7 +3,6 @@ import logging
 import requests
 import time
 from urllib.parse import quote
-from bs4 import BeautifulSoup
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service as ChromeService
@@ -164,10 +163,9 @@ class Scraper():
             self.driver.save_screenshot("login_error_final.png")
             return None
 
-
-    def search_enterprise(self, search_term: str) -> dict | None:
-        """Search for an enterprise using the QYYJT API and return the search results."""
-        logging.info(f"Searching for enterprise: '{search_term}'...")
+    def search(self, search_term: str) -> dict | None:
+        """Search for an term using the QYYJT API and return the search results."""
+        logging.info(f"Searching for term: '{search_term}'...")
         
         params = {
             'pagesize': 10,
@@ -195,11 +193,11 @@ class Scraper():
                     logging.info(f"Search for '{search_term}' succeeded but returned no results.")
                     return None
                 
-                enterprise_info = response_data['data']['list'][0]
-                enterprise_code = enterprise_info.get('code', 'N/A')
-                enterprise_name = enterprise_info.get('name', 'N/A')
-                logging.info(f"Search for '{search_term}' succeeded. Found enterprise: {enterprise_name} (Code: {enterprise_code})")
-                return {'code': enterprise_code, 'name': enterprise_name}
+                info = response_data['data']['list'][0]
+                code = info.get('code', 'N/A')
+                name = info.get('name', 'N/A')
+                logging.info(f"Search for '{search_term}' succeeded. Found enterprise: {name} (Code: {code})")
+                return {'code': code, 'name': name}
             else:
                 error_msg = response_data.get('info', response_data.get('message', '未知错误'))
                 logging.error(f"Search for '{search_term}' failed. API returned error: {error_msg}")
@@ -209,29 +207,38 @@ class Scraper():
             print(f"Error occurred while searching for '{search_term}': {e}")
             return None
 
-    def get_info(self, enterprise_code: str, enterprise_name: str, loading_time: float=5.0) -> dict | None:
+    def open_enterprise_page(self, enterprise_code: str, enterprise_name: str, loading_time: float=5.0) -> bool:
+        self.driver.get(f"https://www.qyyjt.cn/detail/enterprise/overview?code={enterprise_code}&type=company")
+        time.sleep(loading_time)   # Waiting for the page to load completely, including any dynamic content
+
+        if self.driver.page_source is None or "无法访问此网站" in self.driver.page_source:
+            self.driver.save_screenshot(f"page_load_error_{enterprise_name}.png")
+            logging.error(f"Failed to load enterprise page for '{enterprise_name}' (Code: {enterprise_code}). Screenshot saved.")
+            return False
+        
+        logging.info(f"Successfully loaded enterprise page for '{enterprise_name}' (Code: {enterprise_code}).")
+        return True
+
+    def get_enterprise_basic_info(self, enterprise_name: str) -> dict | None:
         with open("src/query_keys.json", "r", encoding="utf-8") as f:
             query_keys = json.load(f)
-        basic_info_keys = query_keys.get("basic_info", {})
+        enterprise_basic_info_keys = query_keys.get("enterprise_basic_info", {})
 
-        logging.info(f"Collecting information for enterprise '{enterprise_name}'...")
+        logging.info(f"Collecting basic information for enterprise '{enterprise_name}'...")
         try:
             basic_info = {}
-
-            self.driver.get(f"https://www.qyyjt.cn/detail/enterprise/overview?code={enterprise_code}&type=company")
-            time.sleep(loading_time)   # Waiting for the page to load completely, including any dynamic content
-            soup = BeautifulSoup(self.driver.page_source, 'lxml')
-            if soup is None:
-                logging.warning(f"Failed to retrieve page source for enterprise '{enterprise_name}'.")
-                return None
+            basic_info["企业名称"] = self.driver.find_element(By.XPATH, "//span[@class='copy-val name']").text.strip()
             
-            basic_info["企业名称"] = soup.find("span", class_="copy-val name").text.strip() if soup.find("span", class_="copy-val name") else "N/A"
-            for basic_info_key in basic_info_keys:
+            for basic_info_key in enterprise_basic_info_keys:
+                target_element = self.driver.find_element(By.XPATH, enterprise_basic_info_keys[basic_info_key])
+                if target_element is None:
+                    logging.warning(f"Failed to find element for '{basic_info_key}' in enterprise '{enterprise_name}'.")
+                    basic_info[basic_info_key] = "N/A"
+                    continue
+
                 try:
-                    element = soup.find_all(text=f"{basic_info_keys[basic_info_key]}")[0].find_next(text=True)
-                    if element.strip() == "：":
-                        element = element.find_next(text=True)
-                    basic_info[basic_info_key] = element.strip()
+                    value = target_element.find_element(By.XPATH, "./following::span").text.strip()
+                    basic_info[basic_info_key] = value if value else "N/A"
                 
                 except Exception as e:
                     logging.warning(f"Failed to find element for '{basic_info_key}' in enterprise '{enterprise_name}'.")
@@ -240,5 +247,99 @@ class Scraper():
             return basic_info
 
         except requests.RequestException as e:
-            print(f"Request failed while getting info for enterprise code '{enterprise_code}': {e}")
+            print(f"Request failed while getting info for enterprise  '{enterprise_name}': {e}")
             return None
+    
+    def get_ownership_penetration_chart(self, enterprise_name: str):
+        try:
+            wait = WebDriverWait(self.driver, 10)
+            chart_tab_locator = (
+                By.CSS_SELECTOR,
+                'li[role="menuitem"][title="股权穿透图"]'
+            )
+            chart_tab = wait.until(EC.element_to_be_clickable(chart_tab_locator))
+            chart_tab.click()
+            logging.info(f"Clicked on '股权穿透图' tab for enterprise '{enterprise_name}'. Waiting for the chart to load...")
+            time.sleep(5)
+
+            max_rounds = 10
+            expandable = []
+
+            for _ in range(max_rounds):
+                node_expands = self.driver.find_elements(By.XPATH, "//*[local-name()='g' and contains(@class, 'node-expand') and contains(@cursor, 'pointer') and contains(@visibility, 'visible')]')")
+                for node in node_expands:
+                    logging.info(node)
+                    vertical_lines = node.find_elements(
+                        By.XPATH,
+                        ".//*[local-name()='line' and contains(@class, 'vertical-line') and contains(@visibility, 'visible')]"
+                    )
+                    
+                    if vertical_lines:
+                        expandable.append(node)
+                
+                if expandable:
+                    for node in expandable:
+                        node.click()
+                        time.sleep(1)  # Wait for the expansion to complete
+                else:
+                    break  # No more expandable nodes, exit the loop
+            
+            logging.info(f"Full ownership penetration chart for enterprise '{enterprise_name}' loaded successfully.")
+            output_button = self.driver.find_element(By.XPATH, "//div[@class='style__Button-liBBGb cwnyzm btn' and text()='导出图片']")
+            output_button.click()
+
+            time.sleep(2)
+        
+        except Exception as e:
+            logging.warning(f"Failed to find or click the '股权穿透图' menu for enterprise '{enterprise_name}': {e}")
+            return None
+    
+    def open_region_page(self, region_code: str, region_name: str, loading_time: float=5.0) -> bool:
+        self.driver.get(f"https://www.qyyjt.cn/{region_code}/area/regionEconomy")
+        time.sleep(loading_time)   # Waiting for the page to load completely, including any dynamic content
+
+        if self.driver.page_source is None or "无法访问此网站" in self.driver.page_source:
+            self.driver.save_screenshot(f"page_load_error_{region_name}.png")
+            logging.error(f"Failed to load region page for '{region_name}'. Screenshot saved.")
+            return False
+        
+        logging.info(f"Successfully loaded region page for '{region_name}'.")
+        return True
+
+    def extract_region_economy_info(self, region_name: str, year_range: int=3) -> dict | None:
+        with open("src/query_keys.json", "r", encoding="utf-8") as f:
+            query_keys = json.load(f)
+        region_info_keys = query_keys.get("region_economy_info", {})
+        logging.info(f"Collecting information for region '{region_name}'...")
+
+        try:
+            region_economy_info = {}
+            current_year_element = self.driver.find_element(By.XPATH, "//span[contains(text(), '年经济预期目标')]")
+            if current_year_element:
+                current_year = int(current_year_element.text.strip()[:4])
+            else:
+                logging.warning(f"Failed to find '年经济预期目标' for region '{region_name}'.")
+                current_year = int(time.localtime().tm_year)
+            
+            for region_info_key in region_info_keys:
+                try:
+                    target = self.driver.find_element(By.XPATH, region_info_keys[region_info_key])
+                    if target is None:
+                        logging.warning(f"Failed to find element for '{region_info_key}' in region '{region_name}'.")
+                        region_economy_info[region_info_key] = {str(current_year - i - 1): 'N/A' for i in range(year_range)}
+                        continue
+
+                    value_elements = target.find_elements(By.XPATH, "./following::td[contains(@style, 'text-align: right;')][position()<=6]")
+                    values = [value_element.text.strip() for value_element in value_elements if value_element.text.strip()]
+                    region_economy_info[region_info_key] = {str(current_year - i - 1): values[i + 1] for i in range(year_range)}  # Default to 'N/A'
+                
+                except Exception as e:
+                    logging.warning(f"Failed to find element for '{region_info_key}' in region '{region_name}'.")
+                    region_economy_info[region_info_key] = {str(current_year - i - 1): 'N/A' for i in range(year_range)}
+        
+            return region_economy_info
+
+        except requests.RequestException as e:
+            logging.error(f"Request failed while getting info for region  '{region_name}': {e}")
+
+        return None

@@ -65,7 +65,7 @@ def main():
                 break  # Exit the loop if authentication is successful
         except Exception as e:
             logging.warning(f"An error occurred during authentication for account {accounts[0]['phone']}: {e}")
-        
+
     logging.info(f"Authentication successful for account {accounts[0]['phone']}.")
 
     while enterprises:
@@ -77,16 +77,23 @@ def main():
             logging.info(f"Target: '{current_query}'")
             logging.info("="*50)
 
-            enterprise_details = scraper.search_enterprise(current_query)
+            enterprise_details = scraper.search(current_query)
             if enterprise_details is None:
                 logging.warning(f"Search API did not return results for '{current_query}'. Skipping this enterprise.")
                 enterprises.pop(0)
                 continue
 
-            basic_info = scraper.get_info(enterprise_details["code"], enterprise_details["name"])
+            if scraper.open_enterprise_page(enterprise_details["code"], enterprise_details["name"]) is False:
+                logging.warning(f"Failed to load enterprise page for '{current_query}'. Skipping this enterprise.")
+                enterprises.pop(0)
+                continue
+
+            basic_info = scraper.get_enterprise_basic_info(enterprise_details["name"])
             logging.info(f"Successfully retrieved information for '{current_query}'. Extracting data...")
             # json.dump(basic_info, open(f"debug_info/{current_query}_basic_info.json", "w", encoding="utf-8"), ensure_ascii=False, indent=4)
             all_extracted_data[current_query] = basic_info
+
+            # ownership_penetration_chart = scraper.get_ownership_penetration_chart(enterprise_details["name"])
             enterprises.pop(0)
         
         except Exception as e:
@@ -105,9 +112,9 @@ def main():
     else:
         print(f"Remaining enterprises that were not processed: {enterprises}")
     print("#"*60)
-    json.dump(all_extracted_data, open("output/extracted_data.json", "w", encoding="utf-8"), ensure_ascii=False, indent=4)
+    # json.dump(all_extracted_data, open("output/extracted_enterprise_data.json", "w", encoding="utf-8"), ensure_ascii=False, indent=4)
     df_data = pd.DataFrame.from_dict(all_extracted_data, orient='index')
-    df_data.to_csv("output/extracted_data.csv", encoding="utf-8-sig")
+    df_data.to_csv("output/extracted_enterprise_data.csv", encoding="utf-8-sig")
 
     # print(f"已爬取的公司代码列表: {code_dict}")
 

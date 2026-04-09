@@ -135,12 +135,17 @@ Thumbs.db
 
 # debug
 debug_info/
+debug.py
+*.png
 
 # output
 output/
 
 # private infomation
 accounts.json
+
+# temporary files
+region_dict.json
 
 # log
 log.txt
