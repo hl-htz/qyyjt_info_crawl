@@ -80,7 +80,7 @@ def main():
     # Create an empty dict to store all extracted data
     all_extracted_data = {}
 
-    scraper = Scraper(login_params["URLs"]["homepage_url"], silent=True)
+    scraper = Scraper(login_params["URLs"]["homepage_url"], silent=False)
     while accounts:
         try:
             scraper.get_authenticated_session(
@@ -116,20 +116,24 @@ def main():
                 regions.pop(0)
                 continue
 
-            region_economy_info = scraper.extract_region_economy_info(current_query)
-            logging.info(f"Successfully retrieved information for '{current_query}'. Extracting data...")
-            df_data = pd.DataFrame.from_dict(region_economy_info, orient='index')
-            df_data.to_csv(f"output/{current_query}_region_economy_info.csv", encoding="utf-8-sig")
+            # region_economy_info = scraper.extract_region_economy_info(current_query)
+            # logging.info(f"Successfully retrieved information for '{current_query}'. Extracting data...")
+            # df_data = pd.DataFrame.from_dict(region_economy_info, orient='index')
+            # df_data.to_csv(f"output/{current_query}_region_economy_info.csv", encoding="utf-8-sig")
 
-            regions.pop(0)
+            region_municipal_bond_info = scraper.extract_municipal_bond_info(current_query)
+            df_data = pd.DataFrame.from_dict(region_municipal_bond_info, orient='index')
+            df_data.to_csv(f"output/{current_query}_municipal_bond_info.csv", encoding="utf-8-sig")
         
         except Exception as e:
             logging.error(f"An unexpected error occurred during scraping for '{current_query}': {e}")
             error_message = traceback.format_exc()
             logging.error(f"{error_message}")
             logging.info("To avoid deadlock, removing the current query from the pool and trying the next one.")
-            regions.pop(0)
             time.sleep(5)
+        
+        finally:
+            regions.pop(0)
 
     print("\n\n" + "#"*60)
     print("Scraping process completed.")

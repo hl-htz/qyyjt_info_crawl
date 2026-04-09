@@ -9,9 +9,14 @@ pip install -r requirements.txt
 ```
 
 ## Usage
+```python
+# for enterprise basic information extration:
+python enterprise_crawl.py
+```
 
 ```python
-python main.py
+# for region economy information extraction:
+python region_crawl.py
 ```
 
 ## Features
@@ -22,7 +27,7 @@ python main.py
 
 ## Modification
 
-- Change `queries/enterprises.csv` for target enterprises
+- Change `queries/enterprises.csv` or `queries/regions.csv` for target enterprises or regions
 
 ## Requirements
 

@@ -310,7 +310,7 @@ class Scraper():
         with open("src/query_keys.json", "r", encoding="utf-8") as f:
             query_keys = json.load(f)
         region_info_keys = query_keys.get("region_economy_info", {})
-        logging.info(f"Collecting information for region '{region_name}'...")
+        logging.info(f"Collecting economy information for region '{region_name}'...")
 
         try:
             region_economy_info = {}
@@ -343,3 +343,40 @@ class Scraper():
             logging.error(f"Request failed while getting info for region  '{region_name}': {e}")
 
         return None
+    
+    def extract_municipal_bond_info(self, region_name: str) -> dict | None:
+        wait = WebDriverWait(self.driver, 10)
+        with open("src/query_keys.json", "r", encoding="utf-8") as f:
+            query_keys = json.load(f)
+        municipal_bond_info_keys = query_keys.get("region_municipal_bond_info", {})
+        logging.info(f"Collecting municipal bond information for region '{region_name}'...")
+
+        municipal_bond_info = {}
+
+        try:
+            clicker0 = wait.until(
+                EC.visibility_of_element_located((By.XPATH, "//li[@title='城投平台']"))
+            )
+            clicker0.click()
+
+            clicker1 = wait.until(
+                EC.visibility_of_element_located((By.XPATH, "//span[contains(text(), '本级')]/preceding::span[@class='ant-radio']"))
+            )
+            clicker1.click()
+
+            time.sleep(2)
+            target_element = self.driver.find_elements(By.XPATH, "//tr[@aria-hidden='true' and @class='ant-table-measure-row']")[0]
+            value_elements = target_element.find_elements(By.XPATH, "./following-sibling::tr")
+            for i, value_element in enumerate(value_elements):
+                current_municipal_bond_info = {}
+                current_municipal_bond_info['企业名称'] = value_element.get_attribute('data-row-key')
+                children_elements = value_element.find_elements(By.XPATH, "./*")
+                for key in municipal_bond_info_keys:
+                    current_municipal_bond_info[key] = children_elements[municipal_bond_info_keys[key]].text.strip()
+                municipal_bond_info[str(i + 1)] = current_municipal_bond_info
+            
+            return municipal_bond_info
+
+        except Exception as e:
+            logging.warning(f"Failed to find or click the '城投平台' menu for region '{region_name}': {e}")
+            return None
